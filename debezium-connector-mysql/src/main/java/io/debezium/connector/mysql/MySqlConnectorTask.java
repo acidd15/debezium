@@ -623,6 +623,26 @@ public final class MySqlConnectorTask extends BaseSourceTask {
         }
 
         logger.debug("binlog_row_image={}", rowImage.get());
-        return "ROW".equalsIgnoreCase(mode.get()) && "FULL".equalsIgnoreCase(rowImage.get());
+
+        AtomicReference<String> mysqlVersion = new AtomicReference<String>("");
+        try {
+            connectionContext.jdbc().query("SHOW GLOBAL VARIABLES LIKE 'version'", rs -> {
+                if (rs.next()) {
+                    mysqlVersion.set(rs.getString(2));
+                }
+            });
+        }
+        catch (SQLException e) {
+            throw new ConnectException("Unexpected error while connecting to MySQL and looking at MySQL version: ", e);
+        }
+
+        logger.info("MySQL version={}", mysqlVersion.get());
+
+        if (mysqlVersion.get().startsWith("5.5")) {
+            return "ROW".equalsIgnoreCase(mode.get());
+        }
+        else {
+            return "ROW".equalsIgnoreCase(mode.get()) && "FULL".equalsIgnoreCase(rowImage.get());
+        }
     }
 }
